@@ -5,7 +5,7 @@ Firmware section 7 and 7.1 submission for Epiroc’s EAE Engineering Challenge. 
 
 To compile the firmware:
 ```
-gcc src/*.c -Iinclude -o run.out
+gcc src/*.c -Iinclude -o run.out -lm
 ```
 
 To run the program:

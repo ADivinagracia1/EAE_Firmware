@@ -7,15 +7,15 @@
 typedef struct {
     uint32_t id;
     float value;
-}CAN_Message;
+}CAN_Message_t;
 
 // Incoming messages queue
-static CAN_Message can_in_queue[CAN_QUEUE_SIZE];
+static CAN_Message_t can_in_queue[CAN_QUEUE_SIZE];
 static int can_in_head = 0;
 static int can_in_tail = 0;
 
 // Outgoing messages queue (simplest: just print)
-static CAN_Message can_out_queue[CAN_QUEUE_SIZE];
+static CAN_Message_t can_out_queue[CAN_QUEUE_SIZE];
 static int can_out_head = 0;
 static int can_out_tail = 0;
 
@@ -96,7 +96,7 @@ float HAL_ReadTemperature(void) {
     // simulate temperature increase if ignition ON, decrease otherwise
     if (hw.ignition_switch) hw.temperature_c += 0.5f;
     else hw.temperature_c -= 0.2f;
-
+  
     // Clamp temperature within [20, 100]
     if (hw.temperature_c < 20.0f) hw.temperature_c = 20.0f;
     if (hw.temperature_c > 100.0f) hw.temperature_c = 100.0f;

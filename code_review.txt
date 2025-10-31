@@ -1,0 +1,162 @@
+readme is very strong.
+
+good that you know header guards
+
+I know that some places put all the headers in a different path like you did here with includes, but i find it kind of silly.
+
+include/state_machine.h
+Good use for the typedef enum, but for the naming typically you do ENUM_NAME_VALUE, for example
+SystemState_STATE_OFF; 
+Also, enums are typically _e instead of _t/
+
+// Update state machine based on inputs
+// temperature: current coolant temperature
+// ignition: ignition state (true=on, false=off)
+// print_transition: if true, prints a message when the state changes
+void SM_Update(bool ignition, float temperature, bool print_transition);
+nit: you could improve the input variable naming so that the comment above isn't needed. For example ignition_requested
+
+
+Good that you are using multiple different c files for different things instead of a mega long file.
+
+src/control_loop.c
+
+nit: sort the includes a bit better. do all the standard C ones first, add a empty line, then do all of your own project specific includes.
+
+nit: } PID_Controller; should have _t. Good use of struct though.
+
+
+I don't like having a bunch of floating static variables in a file, adding them all to a dedicated data struct for the file is better because it makes it easier when using a debugger to find all the variables for the component you are debugging, and it can help with fixing memory issues down the road. Lastly, it helps avoid name collisions between the global static data for the file and local varibles within functions.
+Another thing, when you do have globals like this a common convention is to prefix them with g_
+static PID_Controller pid_fanpump;      // Single PID for both fan and pump.
+static float cooling_setpoint = 70.0f;  
+static float dt = 1.0f;
+float pwm = 0.0f; 
+
+
+I think you missed private function declarations. They can be optionally technically if the code is organized in a way where they are always defined above where they are used. but it's still good pracitce so you can get a high-level of all the things the file might be doing.
+
+always always always do null checks for all pointer inputs or your program can crash. if things get weird enough, it might not even be deterministic.
+
+
+nit: const everything you possibly can. Guards against future mistakes. There are a few instances of this, but i'm only going to comment this once.
+float error = setpoint - measurement;
+
+This is a basic min and max function. these are included in the C standard library math.h
+    if (output > 100.0f) output = 100.0f;
+    if (output < 0.0f) output = 0.0f;
+	
+	
+// Magic numbers are bad. https://en.wikipedia.org/wiki/Magic_number_(programming)#Numeric_literal
+pwm = 15.0f;
+    HAL_SendCANMessage(0x100, coolant_temp); // example ID: temperature
+    HAL_SendCANMessage(0x101, pump_dt);      // example ID: pump duty
+    HAL_SendCANMessage(0x102, fan_dt);       // example ID: fan duty
+
+You have clearly divided this function into 4 parts which is good, but if you can do that I would suggest to take it a step further and do more functions. 1,3,4 would all be good ones to be their own functions that put data in/out of a global struct for this file.
+void Control_Loop(void)
+
+ignition_state ? "ON" : "OFF",
+good use of ternery operator.
+
+
+src/hal.c
+
+I think i missed this in the previous file but always const your pointers
+bool HAL_ReadCANMessage(uint32_t *id, float *value) {
+
+
+Good use of modulo
+can_in_head = (can_in_head + 1) % CAN_QUEUE_SIZE; // wrap around
+
+
+note: multiple return statements within a function used to violate the misra strandard until literally this year. What you did here is good, but be aware some companies may not realize the misra standard has removed this rule.
+    if (can_in_head == can_in_tail) {
+        // No messages
+        return false;
+    }
+
+
+
+
+
+For every file i usually have a bunch of comments at the start to organize the file the same way everytime
+
+// file: src.c
+// brief: this is a file that does X
+
+// C standard includes
+
+// project specific includes
+
+// defines
+
+// data types
+typedef enum 
+{
+
+} enum_example_e;
+
+typedef struct
+{
+	// contains all static things in the file.
+} src_data_t;
+
+
+
+note: from here down, don't include for headers, for them the last line is // public function declarations
+
+
+
+// static variable initialization
+static src_data_t data = {0u]; // note: sometimes compilers don't like the = {0u} part, in which case I just leave off the = {0} part since any C compliant compiler will do this for you implicitly.
+
+// private function declarations
+
+// private function definitions
+
+// public function definitions
+
+
+
+
+src/main.c
+should check for invalid inputs from the user. if they give an invalid input then printf the format your code is expecting
+
+
+src/state_machine.c
+Just style probably but i don't like inline if statements. 
+if (ignition) current_state = STATE_STANDBY;
+->
+if (ignition)
+{
+	current_state = STATE_STANDBY;
+}
+
+also probably just style but i have seen this followed religiously at Tesla and Rivian, but don't do !ignition, always do false == instead since it's harder to make a mistake with that
+
+yoda notation is better https://en.wikipedia.org/wiki/Yoda_conditions#Detecting_programmer_mistakes
+temperature >= OVERHEAT_THRESHOLD
+
+            if (!ignition) {
+                current_state = STATE_OFF;
+            } else if (temperature >= OVERHEAT_THRESHOLD) {
+                current_state = STATE_OVERHEAT;
+            } else if (temperature >= COOLING_THRESHOLD) {
+                current_state = STATE_COOLING;
+            }
+per misra, anytime you have more than one if you must always have an else. The reason is it shows you have explicitly considered every possible case. in my own code i commonly have the below
+else
+{
+	// nop. Nothing to do here because of X, Y, or Z
+}
+In your case it would be
+else
+{
+	// nop. Remain in present state.
+}
+			
+nit: default case usually throws an error.
+        default:
+            current_state = STATE_OFF;
+            break;
